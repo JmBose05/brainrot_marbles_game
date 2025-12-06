@@ -5,6 +5,7 @@
 #include <map>
 #include "raylib.h"
 #include "raymath.h"
+#include "GameMaps.h"
 
 class Marble {
 	public:
@@ -41,8 +42,7 @@ class Marble {
 
 int Marble::num_marbles = 0;
 std::vector<Marble*> Marble::allMarbles;
-const int screenWidth = 800;
-const int screenHeight = 800;
+GameMap* currentMap = nullptr;
 
 void UpdatePositions(){
 	// check collisions with other marbles
@@ -87,31 +87,37 @@ void UpdatePositions(){
 	for (Marble* currM : Marble::allMarbles) {
         	currM->position = Vector2Add(currM->position, currM->velocity);
 
-		// Wall Bounce X
-		if (currM->position.x >= screenWidth - currM->radius) {
-		    currM->position.x = screenWidth - currM->radius;
-		    currM->velocity.x *= -1;
-		}
-		else if (currM->position.x <= currM->radius) {
-		    currM->position.x = currM->radius;
-		    currM->velocity.x *= -1;
-		}
+		if (currentMap) {
+			for (const auto& obstacle : currentMap->obstacles) {
+				// Find the closest point on the rectangle to the circle's center
+				Vector2 closestPoint = {
+					Clamp(currM->position.x, obstacle.x, obstacle.x + obstacle.width),
+					Clamp(currM->position.y, obstacle.y, obstacle.y + obstacle.height)
+				};
 
-		// Wall Bounce Y
-		if (currM->position.y >= screenHeight - currM->radius) {
-		    currM->position.y = screenHeight - currM->radius;
-		    currM->velocity.y *= -1;
-		}
-		else if (currM->position.y <= currM->radius) {
-		    currM->position.y = currM->radius;
-		    currM->velocity.y *= -1;
+				// Check if the circle is colliding with the rectangle
+				if (CheckCollisionPointCircle(closestPoint, currM->position, currM->radius)) {
+					Vector2 collisionNormal = Vector2Normalize(Vector2Subtract(currM->position, closestPoint));
+					// If marble is exactly at the closest point (e.g. inside the rect), pick a default normal
+					if (Vector2LengthSqr(collisionNormal) == 0) {
+						collisionNormal = { 0, -1 };
+					}
+
+					// Reflect velocity
+					currM->velocity = Vector2Reflect(currM->velocity, collisionNormal);
+
+					// Resolve penetration to stop marbles from getting stuck
+					float penetration = currM->radius - Vector2Distance(currM->position, closestPoint);
+					currM->position = Vector2Add(currM->position, Vector2Scale(collisionNormal, penetration));
+				}
+			}
 		}
 	}	
 
 }
 int main (){
 	const int num_marbles = 5;
-	InitWindow(screenWidth, screenHeight, "Brainrot Marbles");
+	InitWindow(SCREENWIDTH, SCREENHEIGHT, "Brainrot Marbles");
 
 	SetTargetFPS(60);
 
@@ -123,21 +129,30 @@ int main (){
 	//Marble* my_marble5 = new Marble(200, 300, 3.0f, 1.0f, ORANGE);
 	//Marble* my_marble6 = new Marble(300, 300, 5.0f, -5.0f, PURPLE);
 
-	std::cout << "DEBUG: #marbles:" << num_marbles << std::endl;
-	std::cout << "DEBUG: marbles:";
+	std::cout << "DEBUG: #marbles:" << Marble::num_marbles << std::endl;
+	std::cout << "DEBUG: marbles: " << std::endl;
 	for(Marble* m : Marble::allMarbles){
 		std::cout << m->name << std::endl;
 	}
 
+	currentMap = &gameMaps["Obstacles"];
+
 	while(!WindowShouldClose()){
 		if (IsKeyPressed(KEY_Q)) {
-            		break;
-        	}	
+			break;
+		}	
+
 		UpdatePositions();
 		
 		BeginDrawing();
 			ClearBackground(RAYWHITE);
-			// Draw the marble (Position, Radius, Color)
+			// Draw the map
+			if (currentMap) {
+				for (const auto& obstacle : currentMap->obstacles){
+					DrawRectangleRec(obstacle, DARKGRAY);
+				}
+			}
+			// Draw the marble
 			for(Marble* m : Marble::allMarbles){
 				DrawCircleV(m->position, m->radius, m->color);
 			}
