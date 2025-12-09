@@ -113,7 +113,18 @@ void UpdatePositions(){
 			}
 		}
 	}	
-
+}
+Marble* CheckWin(){
+	if (currentMap){
+		for(Marble* m : Marble::allMarbles){
+			for(const auto& winCondition : currentMap->winConditions){
+				if(CheckCollisionPointRec(m->position, winCondition)){
+					return m;
+				}
+			}
+		}
+	}	
+	return nullptr;
 }
 int main (){
 	const int num_marbles = 5;
@@ -121,8 +132,8 @@ int main (){
 
 	SetTargetFPS(60);
 
-	Marble* my_marble = new Marble(50, 50, -5.0f, 5.0f, GREEN);
-	Marble* my_marble1 = new Marble(500, 300, 5.5f, 5.0f, RED);
+	Marble* my_marble = new Marble(20, 50, 5.0f, 5.0f, GREEN);
+	Marble* my_marble1 = new Marble(20, 1150, 5.0f, 5.0f, RED);
 	//Marble* my_marble2 = new Marble(600, 100, 5.0f, 7.0f, BLUE);
 	//Marble* my_marble3 = new Marble(500, 350, 4.0f, 2.0f, YELLOW);
 	//Marble* my_marble4 = new Marble(100, 30, 5.0f, 5.0f, MAROON);
@@ -135,7 +146,7 @@ int main (){
 		std::cout << m->name << std::endl;
 	}
 
-	currentMap = &gameMaps["Obstacles"];
+	currentMap = &gameMaps["Race"];
 
 	while(!WindowShouldClose()){
 		if (IsKeyPressed(KEY_Q)) {
@@ -143,13 +154,21 @@ int main (){
 		}	
 
 		UpdatePositions();
-		
+		Marble* winner = CheckWin();
+		if(winner){
+			std::cout << winner->name << " wins!" << std::endl;
+			break;
+		}
+
 		BeginDrawing();
 			ClearBackground(RAYWHITE);
 			// Draw the map
 			if (currentMap) {
 				for (const auto& obstacle : currentMap->obstacles){
 					DrawRectangleRec(obstacle, DARKGRAY);
+				}
+				for (const auto& winCondition : currentMap->winConditions){
+					DrawRectangleRec(winCondition, GREEN);
 				}
 			}
 			// Draw the marble
