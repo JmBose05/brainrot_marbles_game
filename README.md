@@ -1,2 +1,1 @@
-Making a game that simulates marbles dropping
-Using vim
+This is a simulation of bouncing marbles made using raylib
